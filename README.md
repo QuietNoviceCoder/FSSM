@@ -1,9 +1,8 @@
 # FS4D: Feedback State Space Model
 
 [![License](https://img.shields.io/badge/License-BSD_2--Clause-orange.svg)](https://opensource.org/licenses/BSD-2-Clause)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/get-started/locally/)
-
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch 2.6.0](https://img.shields.io/badge/PyTorch-2.6.0-ee4c2c.svg)](https://pytorch.org/get-started/locally/)
 FS4D 是一个基于状态空间模型（State Space Models）的研究项目，通过引入**跨层反馈机制**和**隐式定点计算**（Implicit Fixed-Point Computation），旨在增强模型对超长序列的建模能力。
 
 ## 🚀 核心特性
