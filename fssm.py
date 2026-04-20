@@ -688,6 +688,7 @@ class S4D_Block(nn.Module):
             skip = False,
             dropout=0.0,
             norm = False,
+            glu = True,
             ):
         super().__init__()
         if model == 'input': self.fssm = S4D_model(hidden_size,channels,mult_activation)
@@ -701,24 +702,40 @@ class S4D_Block(nn.Module):
         self.normlization = norm
         if norm == 'BN':self.norm = nn.BatchNorm1d(channels)
         if norm == 'LN':self.norm = nn.LayerNorm(channels)
-    def forward(self,x,feedback=None,r=None):
+        self.glu_use = glu
+        self.glu_proj = nn.Linear(channels, 2 * channels)
 
+    def glu(self,x):
+        a, b = x.chunk(2, dim=-1)
+        return a * torch.sigmoid(b)
+
+    def forward(self,x,feedback=None,r=None):
+        res = x
+        if self.normlization == 'BN': x = self.norm(x.transpose(1, 2)).transpose(1, 2)
+        if self.normlization == 'LN': x = self.norm(x)
         if self.model == 'input':
             u = x - feedback
-            y1 = self.fssm(u)
+            y = self.fssm(u)
         elif self.model == 'middle':
-            y1 = self.fssm(x)
+            y = self.fssm(x)
         elif self.model == 'output':
-            y1, feed = self.fssm(x,get_state=True)
-        y1 = self.pre(y1)
-        y1 = self.final_act(y1)
-        y = self.dropout(y1)
+            y, feed = self.fssm(x,get_state=True)
+        y = self.dropout(y)
         if self.skip: y = y + x
+
+        res = y
         if self.normlization == 'BN' :y = self.norm(y.transpose(1, 2)).transpose(1, 2)
         if self.normlization == 'LN' :y = self.norm(y)
+        if self.glu_use:
+            z = self.glu_proj(y)
+            z = self.glu(z)
+        else:
+            z = self.pre(y)
+        z = self.dropout(z)
+        out = z + res
         if self.model == 'output':
-            return y,feed
-        return y
+            return out,feed
+        return out
 
 class Feed_Block(nn.Module):
     def __init__(
@@ -814,7 +831,7 @@ class FS4Ddeq_model(nn.Module):
             deq_b_max_iter = 30,
             deq_f_tol = 5e-2,
             deq_b_tol = 1e-2,
-            deq_anderson_m = 5,
+            deq_anderson_m = 3,
             ):
         super().__init__()
         input = S4D_Block(hidden_size,mult_activation,channels,'input',final_act,skip,dropout,norm)

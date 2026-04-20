@@ -574,6 +574,7 @@ class S4D_Block(nn.Module):
             skip = False,
             dropout=0.0,
             norm = False,
+            glu = True,
             ):
         super().__init__()
         self.ssm = S4D_model(hidden_size,channels,mult_activation)
@@ -584,11 +585,28 @@ class S4D_Block(nn.Module):
         self.normlization = norm
         if norm == 'BN':self.norm = nn.BatchNorm1d(channels)
         if norm == 'LN':self.norm = nn.LayerNorm(channels)
+        self.glu_use = glu
+        self.glu_proj = nn.Linear(channels, 2 * channels)
+    def glu(self,x):
+        a, b = x.chunk(2, dim=-1)
+        return a * torch.sigmoid(b)
     def forward(self,x):
-        y1 = self.ssm(x)
-        y1 = self.dropout(y1)
-        y2 = self.final_act(self.fc(y1))
-        if self.skip: y2 = y2 + x
-        if self.normlization == 'BN' :y2 = self.norm(y2.transpose(1, 2)).transpose(1, 2)
-        if self.normlization == 'LN' :y2 = self.norm(y2)
-        return y2
+        res = x
+        if self.normlization == 'BN' :x = self.norm(x.transpose(1, 2)).transpose(1, 2)
+        if self.normlization == 'LN' :x = self.norm(x)
+        y = self.ssm(x)
+        y = self.dropout(y)
+        if self.skip: y = y + res
+
+        res = y
+        if self.normlization == 'BN' :y = self.norm(y.transpose(1, 2)).transpose(1, 2)
+        if self.normlization == 'LN' :y = self.norm(y)
+        if self.glu_use:
+            z = self.glu_proj(y)
+            z = self.glu(z)
+        else:
+            z = self.fc(y)
+        z = self.dropout(z)
+        out = z + res
+
+        return out
